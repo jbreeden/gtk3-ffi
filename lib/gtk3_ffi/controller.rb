@@ -28,13 +28,20 @@ module Gtk
 
     def connect_signals
       connect_func = proc do |builder, object, signal_name, handler_name, connect_obj, flags, user_data|
-        puts "Signal #{signal_name}"
-        puts "Handler #{handler_name}"
+        handler = self.method(handler_name) rescue nil
+        unless handler
+          puts "WARNING: Handler method '#{handler_name}' not defined on controller"
+          next
+        end
+
+        handler_func = FFI::Function.new(:void, []) do
+          handler.call
+        end
+
+        g_signal_connect_data(object, signal_name, handler_func, FFI::MemoryPointer::NULL, FFI::MemoryPointer::NULL, 0)
       end
 
-      callback = FFI::Function.new(:void, [:pointer, :pointer, :string, :string, :pointer, :char, :pointer ], &connect_func)
-
-      gtk_builder_connect_signals_full(@builder, callback, FFI::MemoryPointer::NULL)
+      gtk_builder_connect_signals_full(@builder, connect_func, FFI::MemoryPointer::NULL)
     end
   end
 end
